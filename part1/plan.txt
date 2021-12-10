@@ -1,0 +1,25 @@
+FOR MARCHING CUBE ALGORITHM:
+
+Structs:
+    - Vertex:
+        - Relative position (vector3)
+            - This can also be used for textures, the position will always start at (0, 0, 0) because calculating the origin will be kinda dumb
+        - Normal (vector3) (rolling average using usecount)
+        - Use count (unsigned int)
+        - Index (calculate this during the marching cubes stuff)
+    - Vertex Map:
+        - 2D Array that maps [i, j] -> a Vertex, where i and j are indices into the cube field and i <= j
+        - Maybe also holds a triangle list?
+    - Triangle list:
+        - List the triangles!
+    
+Algorithm:
+    - For each marching cube:
+        - Determine the triangles
+        - For each triangle:
+            - Add each vertex to the Vertex Map (does nothing if the vertex is already there)
+                - This is why a struct for Vertex Map might be useful, it can keep track of a global index
+            - Compute the normal of the triangle
+            - Add the normal to each vertex's rolling average
+    - Dump the vertex map into a list of vertices
+    - Get this to work with a list of indices and we have a mesh :)

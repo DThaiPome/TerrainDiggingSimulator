@@ -1,0 +1,3 @@
+https://cmu-graphics.github.io/Scotty3D/meshedit/halfedge - half edge data structure for finding adjacent elements in a mesh
+https://gamedev.stackexchange.com/questions/97707/marching-cubes-vertex-normals - calculatig normals for marching cubes
+https://www.youtube.com/watch?v=M3iI2l0ltbE - marching cubes high level explanation
