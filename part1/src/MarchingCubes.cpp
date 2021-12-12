@@ -368,6 +368,11 @@ void MarchingCubes::fill_triangulations(const std::vector<std::pair<MarchingCube
         };
         Vector3 positions[3];
         for(unsigned int i = 0; i < 3; i++) {
+            if (pointPairs[i].first < pointPairs[i].second) {
+                auto temp = pointPairs[i].first;
+                pointPairs[i].first = pointPairs[i].second;
+                pointPairs[i].second = temp;
+            }
             float valueA = data[get_3d_index(pointPairs[i].first.x, pointPairs[i].first.y, pointPairs[i].first.z, xSegs, ySegs, zSegs)];
             float valueB = data[get_3d_index(pointPairs[i].second.x, pointPairs[i].second.y, pointPairs[i].second.z, xSegs, ySegs, zSegs)];
             positions[i] = point_pair_to_position(pointPairs[i], valueA, valueB, surfaceLevel, xUnit, yUnit, zUnit);
@@ -387,7 +392,6 @@ void MarchingCubes::fill_triangulations(const std::vector<std::pair<MarchingCube
 }
 
 MarchingCubes::MeshData MarchingCubes::march_cubes(unsigned int xSegs, unsigned int ySegs, unsigned int zSegs, float xUnit, float yUnit, float zUnit, float* data, float surfaceLevel) {
-    unsigned int vertexCount = xSegs * ySegs * zSegs;
     std::map<std::pair<IVector3, IVector3>, Vertex> vertexMap;
     std::vector<unsigned int> indices;
     unsigned int globalIndex = 0;
@@ -395,11 +399,6 @@ MarchingCubes::MeshData MarchingCubes::march_cubes(unsigned int xSegs, unsigned 
     for(unsigned int z = 0; z < zSegs - 1; z++) {
         for(unsigned int y = 0; y < ySegs - 1; y++) {
             for(unsigned int x = 0; x < xSegs - 1; x++) {
-                Vector3 basePos = {
-                    x * xUnit,
-                    y * yUnit,
-                    z * zUnit
-                };
                 IVector3 pointIndices[8] = {
                     { x, y, z },
                     { x + 1, y, z },
@@ -424,7 +423,7 @@ MarchingCubes::MeshData MarchingCubes::march_cubes(unsigned int xSegs, unsigned 
                     std::pair<IVector3, IVector3> coordsPair = { pointIndices[vPair.first], pointIndices[vPair.second] };
                     triangulationCoords.push_back(coordsPair);
                 }
-                
+
                 // Pass the triangulation to a function with the values, as well as the vertex map and some other stuff, and do some work!
                 fill_triangulations(triangulationCoords, vertexMap, indices, data, surfaceLevel, xSegs, ySegs, zSegs, xUnit, yUnit, zUnit, globalIndex);
             }
