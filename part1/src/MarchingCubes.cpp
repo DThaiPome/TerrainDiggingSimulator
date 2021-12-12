@@ -276,21 +276,20 @@ inline float index_into_3d_array(float* array, unsigned int x, unsigned int y, u
 }
 
 unsigned int triangulation_index(unsigned int* points) {
-    unsigned int index;
+    unsigned int index = 0;
     for(int i = 0; i < 8; i++) {
         if (points[i] == 1) {
-            index += pow(2.0, static_cast<double>(i));
+            index += static_cast<unsigned int>(pow(2.0, static_cast<double>(i)));
         }
     }
     return index;
 }
 
 std::vector<std::pair<unsigned int, unsigned int>> index_triangulation_table(unsigned int index) {
-    int* row = triangulation[index];
     std::vector<unsigned int> edgeIndices;
     std::vector<std::pair<unsigned int, unsigned int>> result;
-    for(int i = 0; i < 16 && row[i] != -1; i++) {
-        edgeIndices.push_back(static_cast<unsigned int>(row[i]));
+    for(int i = 0; i < 16 && triangulation[index][i] != -1; i++) {
+        edgeIndices.push_back(static_cast<unsigned int>(triangulation[index][i]));
     }
     std::pair<unsigned int, unsigned int> edgeToVertexPairs[12] = {
         { 0, 1 },
@@ -360,7 +359,7 @@ MarchingCubes::Vector3 MarchingCubes::triangle_normal(MarchingCubes::Vector3* po
     };
 }
 
-void MarchingCubes::fill_triangulations(const std::vector<std::pair<MarchingCubes::IVector3, MarchingCubes::IVector3>> & triangulation, std::map<std::pair<MarchingCubes::IVector3, MarchingCubes::IVector3>, MarchingCubes::Vertex> & vertexMap, std::vector<unsigned int> indices, float* data, float surfaceLevel, float xSegs, float ySegs, float zSegs, float xUnit, float yUnit, float zUnit, unsigned int & globalIndex) {
+void MarchingCubes::fill_triangulations(const std::vector<std::pair<MarchingCubes::IVector3, MarchingCubes::IVector3>> & triangulation, std::map<std::pair<MarchingCubes::IVector3, MarchingCubes::IVector3>, MarchingCubes::Vertex> & vertexMap, std::vector<unsigned int> & indices, float* data, float surfaceLevel, float xSegs, float ySegs, float zSegs, float xUnit, float yUnit, float zUnit, unsigned int & globalIndex) {
     for(auto it = triangulation.cbegin(); it != triangulation.cend(); it += 3) {
         std::pair<IVector3, IVector3> pointPairs[3] = {
             *it,
@@ -393,9 +392,9 @@ MarchingCubes::MeshData MarchingCubes::march_cubes(unsigned int xSegs, unsigned 
     std::vector<unsigned int> indices;
     unsigned int globalIndex = 0;
 
-    for(unsigned int z = 0; z < zSegs; z++) {
-        for(unsigned int y = 0; y < ySegs; y++) {
-            for(unsigned int x = 0; x < xSegs; x++) {
+    for(unsigned int z = 0; z < zSegs - 1; z++) {
+        for(unsigned int y = 0; y < ySegs - 1; y++) {
+            for(unsigned int x = 0; x < xSegs - 1; x++) {
                 Vector3 basePos = {
                     x * xUnit,
                     y * yUnit,
@@ -423,7 +422,7 @@ MarchingCubes::MeshData MarchingCubes::march_cubes(unsigned int xSegs, unsigned 
                 for(unsigned int i = 0; i < triangulation.size(); i++) {
                     std::pair<unsigned int, unsigned int> vPair = triangulation[i];
                     std::pair<IVector3, IVector3> coordsPair = { pointIndices[vPair.first], pointIndices[vPair.second] };
-                    triangulationCoords[i] = coordsPair;
+                    triangulationCoords.push_back(coordsPair);
                 }
                 
                 // Pass the triangulation to a function with the values, as well as the vertex map and some other stuff, and do some work!
@@ -465,7 +464,14 @@ MarchingCubes::MarchingCubes(unsigned int xSegs, unsigned int ySegs, unsigned in
         bufferData.push_back(avgNormal.z);
     }
 
-    m_data = 0;
+    m_bufferData = bufferData;
+    m_indices = md.indices;
+    size_t size = m_indices.size();
+
+    for(int i = 0; i < size; i++) {
+        unsigned int index = m_indices[i];
+        m_indices[i] = index + 1;
+    }
 }
 
 MarchingCubes::~MarchingCubes() {
