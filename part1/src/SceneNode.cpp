@@ -64,7 +64,13 @@ void SceneNode::Draw(){
 void SceneNode::Update(glm::mat4 projectionMatrix, Camera* camera){
     if(m_object!=nullptr){
         // TODO: Implement here!
-    
+
+    	if (m_parent!=nullptr) {
+			m_worldTransform = m_parent->GetWorldTransform() * m_localTransform;
+		} else {
+			m_worldTransform = m_localTransform;
+		}
+		
     	// Now apply our shader 
 		m_shader.Bind();
     	// Set the uniforms in our current shader
@@ -72,7 +78,7 @@ void SceneNode::Update(glm::mat4 projectionMatrix, Camera* camera){
         // For our object, we apply the texture in the following way
         // Note that we set the value to 0, because we have bound
         // our texture to slot 0.
-        m_shader.SetUniform1i("u_DiffuseMap",0);  
+        // m_shader.SetUniform1i("u_DiffuseMap",0);  
         // Set the MVP Matrix for our object
         // Send it into our shader
         m_shader.SetUniformMatrix4fv("model", &m_worldTransform.GetInternalMatrix()[0][0]);

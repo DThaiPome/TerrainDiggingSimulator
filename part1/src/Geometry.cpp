@@ -18,17 +18,17 @@ Geometry::~Geometry(){
 
 // Adds a vertex and associated texture coordinate.
 // Will also add a and a normal
-void Geometry::AddVertex(float x, float y, float z, float s, float t){
+void Geometry::AddVertex(float x, float y, float z, float s, float t, float nX, float nY, float nZ){
 	m_vertexPositions.push_back(x);
 	m_vertexPositions.push_back(y);
 	m_vertexPositions.push_back(z);
     // Add texture coordinates
 	m_textureCoords.push_back(s);
 	m_textureCoords.push_back(t);
-	// Push back placeholders for m_normals
-	m_normals.push_back(0.0f);
-	m_normals.push_back(0.0f);
-	m_normals.push_back(1.0f);
+	
+	m_normals.push_back(nX);
+	m_normals.push_back(nY);
+	m_normals.push_back(nZ);
 	// Push back placeholders for tangents
 	m_tangents.push_back(0.0f);
 	m_tangents.push_back(0.0f);

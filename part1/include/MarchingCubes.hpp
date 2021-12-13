@@ -50,7 +50,7 @@ private:
 
     void fill_triangulations(const std::vector<std::pair<IVector3, IVector3>> & triangulation, std::map<std::pair<IVector3, IVector3>, MarchingCubes::Vertex> & vertexMap, std::vector<unsigned int> & indices, float* data, float surfaceLevel, float xSegs, float ySegs, float zSegs, float xUnit, float yUnit, float zUnit, unsigned int & globalIndex);
 
-    Vector3 point_pair_to_position(std::pair<IVector3, IVector3> positionPair, float valueA, float valueB, float surfaceLevel, float xUnit, float yUnit, float zUnit);
+    Vector3 point_pair_to_position(std::pair<IVector3, IVector3> positionPair, Vector3 origin, float valueA, float valueB, float surfaceLevel, float xUnit, float yUnit, float zUnit);
 
     Vector3 triangle_normal(Vector3* positions);
 

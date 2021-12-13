@@ -1,5 +1,6 @@
 #include "SDLGraphicsProgram.hpp"
 #include "Camera.hpp"
+#include "MarchingCubes.hpp"
 
 #include <iostream>
 #include <string>
@@ -122,6 +123,59 @@ void SDLGraphicsProgram::Loop(){
     // Enable text input
     SDL_StartTextInput();
 
+	float data3[] = {
+        1, 0, 1,
+        0, 0, 0,
+        1, 0, 1,
+        
+        0, 0, 0,
+        0, 0, 0,
+        0, 0, 0,
+
+        0, 0, 0,
+        0, 0, 0,
+        0, 0, 0
+    };
+	float data5[] = {
+        0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0,
+        
+        0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0,
+        0, 0, 1, 0, 0,
+        0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0,
+        
+        0, 0, 0, 0, 0,
+        0, 0, 1, 0, 0,
+        0, 1, 0, 1, 0,
+        0, 0, 1, 0, 0,
+        0, 0, 0, 0, 0,
+        
+        0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0,
+        0, 0, 1, 0, 0,
+        0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0,
+        
+        0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0
+    };
+    MarchingCubes* mc = new MarchingCubes(5, 5, 5, 2, 2, 2, data5, 0.5f);
+
+	SceneNode* mcNode = new SceneNode(mc);
+	m_renderer->setRoot(mcNode);
+
+    m_renderer->GetCamera(0)->SetCameraEyePosition(0.0f,0.0f,1.0f);
+
+    float rotate = 0.0f;
+
     // While application is running
     while(!quit){
 
@@ -137,7 +191,7 @@ void SDLGraphicsProgram::Loop(){
                 // Handle mouse movements
                 int mouseX = e.motion.x;
                 int mouseY = e.motion.y;
-//              m_renderer->camera->mouseLook(mouseX, mouseY);
+                // m_renderer->GetCamera(0)->MouseLook(mouseX, mouseY);
             }
             switch(e.type){
                 // Handle keyboard presses
@@ -149,6 +203,12 @@ void SDLGraphicsProgram::Loop(){
             }
         } // End SDL_PollEvent loop.
 		
+        mcNode->GetLocalTransform().LoadIdentity();
+        mcNode->GetLocalTransform().Translate(0, 0, -2.5f);
+        mcNode->GetLocalTransform().Rotate(0.2f * rotate, 0.0f, 1.0f, 0.0f);
+
+        rotate += 0.04f;
+
         // Update our scene through our renderer
         m_renderer->Update();
         // Render our scene using our selected renderer

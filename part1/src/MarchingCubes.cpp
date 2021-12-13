@@ -315,26 +315,26 @@ inline float flerp(float a, float b, float t) {
     return a + (t * (b - a));
 }
 
-MarchingCubes::Vector3 MarchingCubes::point_pair_to_position(std::pair<MarchingCubes::IVector3, MarchingCubes::IVector3> positionPair, float valueA, float valueB, float surfaceLevel, float xUnit, float yUnit, float zUnit) {
+MarchingCubes::Vector3 MarchingCubes::point_pair_to_position(std::pair<MarchingCubes::IVector3, MarchingCubes::IVector3> positionPair, Vector3 origin, float valueA, float valueB, float surfaceLevel, float xUnit, float yUnit, float zUnit) {
     IVector3 indexA = positionPair.first;
     IVector3 indexB = positionPair.second;
     Vector3 pointA = {
-        indexA.x * xUnit,
-        indexA.y * yUnit,
-        indexA.z * zUnit
+        origin.x + (indexA.x * xUnit),
+        origin.y + (indexA.y * yUnit),
+        origin.z + (indexA.z * zUnit)
     };
     Vector3 pointB = {
-        indexB.x * xUnit,
-        indexB.y * yUnit,
-        indexB.z * zUnit
+        origin.x + (indexB.x * xUnit),
+        origin.y + (indexB.y * yUnit),
+        origin.z + (indexB.z * zUnit)
     };
 
     float t = (surfaceLevel - valueA) / (valueB - valueA);
 
     Vector3 result = {
-        flerp(indexA.x, indexB.x, t),
-        flerp(indexA.y, indexB.y, t),
-        flerp(indexA.z, indexB.z, t)
+        flerp(pointA.x, pointB.x, t),
+        flerp(pointA.y, pointB.y, t),
+        flerp(pointA.z, pointB.z, t)
     };
 
     return result;
@@ -360,6 +360,11 @@ MarchingCubes::Vector3 MarchingCubes::triangle_normal(MarchingCubes::Vector3* po
 }
 
 void MarchingCubes::fill_triangulations(const std::vector<std::pair<MarchingCubes::IVector3, MarchingCubes::IVector3>> & triangulation, std::map<std::pair<MarchingCubes::IVector3, MarchingCubes::IVector3>, MarchingCubes::Vertex> & vertexMap, std::vector<unsigned int> & indices, float* data, float surfaceLevel, float xSegs, float ySegs, float zSegs, float xUnit, float yUnit, float zUnit, unsigned int & globalIndex) {
+    Vector3 origin = {
+        (-(xSegs - 1) * xUnit) / 2,
+        (-(ySegs - 1) * yUnit) / 2,
+        (-(zSegs - 1) * zUnit) / 2,   
+    };
     for(auto it = triangulation.cbegin(); it != triangulation.cend(); it += 3) {
         std::pair<IVector3, IVector3> pointPairs[3] = {
             *it,
@@ -369,13 +374,13 @@ void MarchingCubes::fill_triangulations(const std::vector<std::pair<MarchingCube
         Vector3 positions[3];
         for(unsigned int i = 0; i < 3; i++) {
             if (pointPairs[i].first < pointPairs[i].second) {
-                auto temp = pointPairs[i].first;
+                IVector3 temp = pointPairs[i].first;
                 pointPairs[i].first = pointPairs[i].second;
                 pointPairs[i].second = temp;
             }
             float valueA = data[get_3d_index(pointPairs[i].first.x, pointPairs[i].first.y, pointPairs[i].first.z, xSegs, ySegs, zSegs)];
             float valueB = data[get_3d_index(pointPairs[i].second.x, pointPairs[i].second.y, pointPairs[i].second.z, xSegs, ySegs, zSegs)];
-            positions[i] = point_pair_to_position(pointPairs[i], valueA, valueB, surfaceLevel, xUnit, yUnit, zUnit);
+            positions[i] = point_pair_to_position(pointPairs[i], origin, valueA, valueB, surfaceLevel, xUnit, yUnit, zUnit);
             vertexMap[pointPairs[i]].position = positions[i];
         }
         Vector3 surfaceNormal = triangle_normal(positions);
@@ -444,33 +449,52 @@ MarchingCubes::MarchingCubes(unsigned int xSegs, unsigned int ySegs, unsigned in
     // and that's basically it
     MeshData md = march_cubes(xSegs, ySegs, zSegs, xDim / xSegs, yDim / ySegs, zDim / zSegs, data, surfaceLevel);
 
-    std::vector<float> bufferData;
+    size_t vertexCount = md.vertices.size();
+    for(unsigned int i = 0; i < vertexCount; i++) {
+        unsigned int index = md.vertices[i].index;
+        if (i != index) {
+            Vertex t = md.vertices[index];
+            md.vertices[index] = md.vertices[i];
+            md.vertices[i] = t;
+            i--;
+        }
+    }
     for(auto it = md.vertices.begin(); it != md.vertices.end(); it++) {
         Vertex v = *it;
-        bufferData.push_back(v.position.x);
-        bufferData.push_back(v.position.y);
-        bufferData.push_back(v.position.z);
-        bufferData.push_back(v.position.x);
-        bufferData.push_back(v.position.y);
-        bufferData.push_back(v.position.z);
         Vector3 avgNormal = {
             v.normal.x / v.usageCount,
             v.normal.y / v.usageCount,
             v.normal.z / v.usageCount
         };
-        bufferData.push_back(avgNormal.x);
-        bufferData.push_back(avgNormal.y);
-        bufferData.push_back(avgNormal.z);
+
+        m_geometry.AddVertex(
+            v.position.x,
+            v.position.y,
+            v.position.z,
+            v.position.x,
+            v.position.y,
+            avgNormal.x,
+            avgNormal.y,
+            avgNormal.z
+        );
     }
 
-    m_bufferData = bufferData;
-    m_indices = md.indices;
-    size_t size = m_indices.size();
+    size_t verticesSize = md.vertices.size();
+    verticesSize++;
 
-    for(int i = 0; i < size; i++) {
-        unsigned int index = m_indices[i];
-        m_indices[i] = index + 1;
+    for(auto it = md.indices.begin(); it != md.indices.end(); it++) {
+        m_geometry.AddIndex(*it);
     }
+
+    // Finally generate a simple 'array of bytes' that contains
+    // everything for our buffer to work with.
+    m_geometry.Gen();
+
+    // Create a buffer and set the stride of information
+    m_vertexBufferLayout.CreateNormalBufferLayout(m_geometry.GetBufferDataSize(),
+                                            m_geometry.GetIndicesSize(),
+                                            m_geometry.GetBufferDataPtr(),
+                                            m_geometry.GetIndicesDataPtr());
 }
 
 MarchingCubes::~MarchingCubes() {

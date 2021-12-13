@@ -35,8 +35,6 @@ public:
     ~Object();
     // Load a texture
     void LoadTexture(std::string fileName);
-    // Create a textured quad
-    void MakeTexturedQuad(std::string fileName);
     // How to draw the object
     virtual void Render();
 protected: // Classes that inherit from Object are intended to be overriden.
@@ -46,7 +44,7 @@ protected: // Classes that inherit from Object are intended to be overriden.
     // For now we have one buffer per object.
     VertexBufferLayout m_vertexBufferLayout;
     // For now we have one diffuse map and one normal map per object
-    Texture m_textureDiffuse;
+    // Texture m_textureDiffuse;
     // Store the objects Geometry
 	Geometry m_geometry;
 };
