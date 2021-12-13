@@ -8,6 +8,8 @@
 #include <fstream>
 #include <math.h>
 
+#include "Transform.hpp"
+
 // Initialization function
 // Returns a true or false value based on successful completion of setup.
 // Takes in dimensions of window.
@@ -110,16 +112,8 @@ bool SDLGraphicsProgram::InitGL(){
 	return success;
 }
 
-// float data_func(float x, float y, float z) {
-//     return sin(x * 35) + cos(y * 20) + sin(z * 10);
-// }
-
 float data_func(float x, float y, float z) {
-    if (x == 1 || y == 1 || z == 1) {
-        return 0;
-    } else {
-        return 1;
-    }
+    return sin(x * 35) + cos(y * 30) + sin(z * 33);
 }
 
 float* make_data(unsigned int xSegs, unsigned int ySegs, unsigned int zSegs) {
@@ -136,7 +130,7 @@ float* make_data(unsigned int xSegs, unsigned int ySegs, unsigned int zSegs) {
                 if (x == 0 || x == xSegs - 1
                 || y == 0 || y == ySegs - 1
                 || z == 0 || z == zSegs - 1) {
-                    result[index] = 0;
+                    result[index] = 0.5999f;
                 } else {
                     result[index] = 1;
                 }
@@ -144,6 +138,10 @@ float* make_data(unsigned int xSegs, unsigned int ySegs, unsigned int zSegs) {
         }
     }
     return result;
+}
+
+inline float clampf(float val, float min, float max) {
+    return val < min ? min : (val > max ? max : val);
 }
 
 //Loops forever!
@@ -202,21 +200,19 @@ void SDLGraphicsProgram::Loop(){
         0, 0, 0, 0, 0,
         0, 0, 0, 0, 0
     };
-    float* bigData = make_data(35, 35, 35);
-    MarchingCubes* mc = new MarchingCubes(35, 35, 35, 2, 2, 2, bigData, 0.6f);
-    float* explodeData1 = mc->SphereExplosionData(10.0f, 1.0f, 30, 5, 15);
-    float* explodeData2 = mc->SphereExplosionData(10.0f, 1.0f, 15, 15, 10);
-    bigData = mc->Subtract(explodeData1);
-    bigData = mc->Subtract(explodeData2);
-    delete mc;
-    mc = new MarchingCubes(35, 35, 35, 2, 2, 2, bigData, 0.6f);
+    float* bigData = make_data(20, 20, 20);
+    MarchingCubes* mc = new MarchingCubes(20, 20, 20, 2, 2, 2, bigData, 0.6f);
 
 	SceneNode* mcNode = new SceneNode(mc);
 	m_renderer->setRoot(mcNode);
 
-    m_renderer->GetCamera(0)->SetCameraEyePosition(0.0f,0.0f,1.0f);
+    m_renderer->GetCamera(0)->SetCameraEyePosition(0.0f,0.0f,3.5f);
 
     float rotate = 0.0f;
+    float x = -1;
+
+    float yRot = 0;
+    float xRot = 0;
 
     // While application is running
     while(!quit){
@@ -231,23 +227,43 @@ void SDLGraphicsProgram::Loop(){
             // Handle keyboad input for the camera class
             if(e.type==SDL_MOUSEMOTION){
                 // Handle mouse movements
-                int mouseX = e.motion.x;
-                int mouseY = e.motion.y;
+                if (SDL_GetMouseState(NULL, NULL)&SDL_BUTTON(1)) {
+                    xRot += e.motion.xrel * 0.005f;
+                    yRot += e.motion.yrel * 0.005f;
+                    yRot = clampf(yRot, -0.625, 0.625f);
+                }
                 // m_renderer->GetCamera(0)->MouseLook(mouseX, mouseY);
             }
             switch(e.type){
                 // Handle keyboard presses
                 case SDL_KEYDOWN:
                     switch(e.key.keysym.sym){
-                        
+                        case SDLK_x:
+                            {
+                                float* explodeData = mc->SphereExplosionData(1.0f + (x / 3), 1.0f, x, 12, 5);
+                                x += 0.1f;
+                                bigData = mc->Subtract(explodeData);
+                                delete[] explodeData;
+                                mc->Init(2, 2, 2, 0.6f);
+                            }
+                            break;
+                        case SDLK_r:
+                            {
+                                float* resetData = make_data(20, 20, 20);
+                                mc->SetData(resetData);
+                                delete[] resetData;
+                                mc->Init(2, 2, 2, 0.6f);
+                                x = -1;
+                            }
+                            break;
                     }
                 break;
             }
         } // End SDL_PollEvent loop.
 		
         mcNode->GetLocalTransform().LoadIdentity();
-        mcNode->GetLocalTransform().Translate(0, 0, -2.5f);
-        mcNode->GetLocalTransform().Rotate(0.2f * rotate, 0.0f, 1.0f, 0.0f);
+        mcNode->GetLocalTransform().Rotate(yRot, 1, 0, 0);
+        mcNode->GetLocalTransform().Rotate(xRot, 0, 1, 0);
 
         rotate += 0.04f;
 

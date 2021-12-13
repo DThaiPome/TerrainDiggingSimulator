@@ -439,7 +439,7 @@ MarchingCubes::MeshData MarchingCubes::march_cubes(unsigned int xSegs, unsigned 
 
     #ifdef USE_THREADS
     size_t numThreads = (xSegs - 1) * (ySegs - 1) * (zSegs - 1);
-    pthread_t threads[numThreads];
+    boost::thread threads[numThreads];
 
     size_t threadCounter = 0;
     #endif
@@ -464,7 +464,7 @@ MarchingCubes::MeshData MarchingCubes::march_cubes(unsigned int xSegs, unsigned 
                     &globalIndex
                 };
                 #ifdef USE_THREADS
-                pthread_create(&threads[threadCounter], NULL, start_cube_thread, (void *)(&mArgs));
+                threads[threadCounter] = boost::thread(start_cube_thread, (void *)(&mArgs));
                 #else
                 start_cube_thread(&mArgs);
                 #endif
@@ -475,8 +475,7 @@ MarchingCubes::MeshData MarchingCubes::march_cubes(unsigned int xSegs, unsigned 
     #ifdef USE_THREADS
     // JOIN THREADS
     for(size_t i = 0; i < numThreads; i++) {
-        void* status;
-        pthread_join(threads[i], &status);
+        threads[i].join();
     }
     #endif
 
@@ -488,16 +487,14 @@ MarchingCubes::MeshData MarchingCubes::march_cubes(unsigned int xSegs, unsigned 
     return { vertices, indices };
 }
 
-MarchingCubes::MarchingCubes(unsigned int xSegs, unsigned int ySegs, unsigned int zSegs, float xDim, float yDim, float zDim, float* data, float surfaceLevel) : Object() {
-    m_data = data;
-    m_xSegs = xSegs;
-    m_ySegs = ySegs;
-    m_zSegs = zSegs;
+void MarchingCubes::Init(float xDim, float yDim, float zDim, float surfaceLevel) {
+    m_geometry = Geometry();
+    m_vertexBufferLayout = VertexBufferLayout();
 
     // to make the mesh, we need a list of vertices and a list of indices
     // then we take all of these values and add them to our geometry!
     // and that's basically it
-    MeshData md = march_cubes(xSegs, ySegs, zSegs, xDim / xSegs, yDim / ySegs, zDim / zSegs, data, surfaceLevel);
+    MeshData md = march_cubes(m_xSegs, m_ySegs, m_zSegs, xDim / m_xSegs, yDim / m_ySegs, zDim / m_zSegs, m_data, surfaceLevel);
 
     size_t vertexCount = md.vertices.size();
     for(unsigned int i = 0; i < vertexCount; i++) {
@@ -547,6 +544,15 @@ MarchingCubes::MarchingCubes(unsigned int xSegs, unsigned int ySegs, unsigned in
                                             m_geometry.GetIndicesDataPtr());
 }
 
+MarchingCubes::MarchingCubes(unsigned int xSegs, unsigned int ySegs, unsigned int zSegs, float xDim, float yDim, float zDim, float* data, float surfaceLevel) : Object() {
+    m_data = data;
+    m_xSegs = xSegs;
+    m_ySegs = ySegs;
+    m_zSegs = zSegs;
+
+    Init(xDim, yDim, zDim, surfaceLevel);
+}
+
 MarchingCubes::~MarchingCubes() {
 
 }
@@ -584,4 +590,10 @@ float* MarchingCubes::SphereExplosionData(float radius, float noise, float origi
         }
     }
     return data;
+}
+
+void MarchingCubes::SetData(float* data) {
+    for(size_t i = 0; i < m_xSegs * m_ySegs * m_zSegs; i++) {
+        m_data[i] = data[i];
+    }
 }

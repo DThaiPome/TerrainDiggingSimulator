@@ -6,14 +6,17 @@
 #include <map>
 
 #ifdef USE_THREADS
-#include <mutex>
-#include <pthread.h>
+#include <boost/interprocess/sync/interprocess_mutex.hpp>
+#include <boost/thread.hpp>
 #endif
 
 class MarchingCubes : public Object { 
 public:
     MarchingCubes(unsigned int xSegs, unsigned int ySegs, unsigned int zSegs, float xDim, float yDim, float zDim, float* data, float surfaceLevel);
     ~MarchingCubes();
+
+    void Init(float xDim, float yDim, float zDim, float surfaceLevel);
+    void SetData(float* data);
 
     float* Subtract(float* subtractData);
     float* SphereExplosionData(float radius, float noise, float originX, float originY, float originZ);
@@ -83,15 +86,14 @@ private:
     static void* start_cube_thread(void* args) {
         MarchArgs* mArgs = (MarchArgs*)args;
         mArgs->obj->cube_thread(mArgs->x, mArgs->y, mArgs->z, mArgs->xSegs, mArgs->ySegs, mArgs->zSegs, mArgs->xUnit, mArgs->yUnit, mArgs->zUnit, mArgs->data, mArgs->surfaceLevel, *(mArgs->vertexMap), *(mArgs->indices), *(mArgs->globalIndex));
-        #ifdef USE_THREADS
-        pthread_exit(NULL);
-        #endif
     }
 
     void cube_thread(unsigned int x, unsigned int y, unsigned int z, unsigned int xSegs, unsigned int ySegs, unsigned int zSegs, float xUnit, float yUnit, float zUnit, float* data, float surfaceLevel, std::map<std::pair<IVector3, IVector3>, Vertex> & vertexMap, std::vector<unsigned int> & indices, unsigned int & globalIndex);
 
+    void init();
+
     #ifdef USE_THREADS
-    std::mutex m_dataLock;
+    boost::interprocess::interprocess_mutex m_dataLock;
     #endif
 
     void lockData() {
@@ -102,7 +104,7 @@ private:
 
     void unlockData() {
         #ifdef USE_THREADS
-        m_datalock.unlock();
+        m_dataLock.unlock();
         #endif
     }
 

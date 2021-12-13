@@ -30,7 +30,7 @@ void main()
     // Store our final texture color
     vec3 diffuseColor;
     // diffuseColor = texture(u_DiffuseMap, v_texCoord).rgb;
-    diffuseColor = vec3(1.0);
+    diffuseColor = vec3(v_texCoord, 1.0);
 
     // (1) Compute ambient light
     vec3 ambient = ambientIntensity * lightColor;
