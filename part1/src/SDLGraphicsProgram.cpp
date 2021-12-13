@@ -1,14 +1,13 @@
 #include "SDLGraphicsProgram.hpp"
 #include "Camera.hpp"
 #include "MarchingCubes.hpp"
+#include "EmptyObject.hpp"
 
 #include <iostream>
 #include <string>
 #include <sstream>
 #include <fstream>
 #include <math.h>
-
-#include "Transform.hpp"
 
 // Initialization function
 // Returns a true or false value based on successful completion of setup.
@@ -144,6 +143,19 @@ inline float clampf(float val, float min, float max) {
     return val < min ? min : (val > max ? max : val);
 }
 
+void dig(MarchingCubes* mc, float indicatorX, float indicatorY, float indicatorZ) {
+    indicatorX += 1;
+    indicatorX *= 10;
+    indicatorY += 1;
+    indicatorY *= 10;
+    indicatorZ += 1;
+    indicatorZ *= 10;
+    float* sphereData = mc->SphereExplosionData(3, 0, indicatorX, indicatorY, indicatorZ);
+    mc->Subtract(sphereData);
+    mc->Init(2, 2, 2, 0.6f);
+    delete[] sphereData;
+}
+
 //Loops forever!
 void SDLGraphicsProgram::Loop(){
 
@@ -157,12 +169,12 @@ void SDLGraphicsProgram::Loop(){
     SDL_StartTextInput();
 
 	float data3[] = {
-        1, 0, 1,
         0, 0, 0,
-        1, 0, 1,
+        0, 0, 0,
+        0, 0, 0,
         
         0, 0, 0,
-        0, 0, 0,
+        0, 1, 0,
         0, 0, 0,
 
         0, 0, 0,
@@ -202,9 +214,21 @@ void SDLGraphicsProgram::Loop(){
     };
     float* bigData = make_data(20, 20, 20);
     MarchingCubes* mc = new MarchingCubes(20, 20, 20, 2, 2, 2, bigData, 0.6f);
-
 	SceneNode* mcNode = new SceneNode(mc);
-	m_renderer->setRoot(mcNode);
+
+    float indicatorX = 0;
+    float indicatorY = 0;
+    float indicatorZ = 0;
+    float indicatorSpeed = 0.04f;
+    MarchingCubes* indicator = new MarchingCubes(3, 3, 3, 1, 1, 1, data3, 0.5f);
+    SceneNode* indicatorNode = new SceneNode(indicator);
+
+    EmptyObject* root = new EmptyObject();
+    SceneNode* rootNode = new SceneNode(root);
+    rootNode->AddChild(mcNode);
+    rootNode->AddChild(indicatorNode);
+
+	m_renderer->setRoot(rootNode);
 
     m_renderer->GetCamera(0)->SetCameraEyePosition(0.0f,0.0f,3.5f);
 
@@ -256,14 +280,41 @@ void SDLGraphicsProgram::Loop(){
                                 x = -1;
                             }
                             break;
+                        case SDLK_LEFT:
+                            indicatorX -= indicatorSpeed;
+                            dig(mc, indicatorX, indicatorY, indicatorZ);
+                            break;
+                        case SDLK_RIGHT:
+                            indicatorX += indicatorSpeed;
+                            dig(mc, indicatorX, indicatorY, indicatorZ);
+                            break;
+                        case SDLK_DOWN:
+                            indicatorZ += indicatorSpeed;
+                            dig(mc, indicatorX, indicatorY, indicatorZ);
+                            break;
+                        case SDLK_UP:
+                            indicatorZ -= indicatorSpeed;
+                            dig(mc, indicatorX, indicatorY, indicatorZ);
+                            break;
+                        case SDLK_RSHIFT:
+                            indicatorY += indicatorSpeed;
+                            dig(mc, indicatorX, indicatorY, indicatorZ);
+                            break;
+                        case SDLK_RCTRL:
+                            indicatorY -= indicatorSpeed;
+                            dig(mc, indicatorX, indicatorY, indicatorZ);
+                            break;
                     }
                 break;
             }
         } // End SDL_PollEvent loop.
 		
-        mcNode->GetLocalTransform().LoadIdentity();
-        mcNode->GetLocalTransform().Rotate(yRot, 1, 0, 0);
-        mcNode->GetLocalTransform().Rotate(xRot, 0, 1, 0);
+        rootNode->GetLocalTransform().LoadIdentity();
+        rootNode->GetLocalTransform().Rotate(yRot, 1, 0, 0);
+        rootNode->GetLocalTransform().Rotate(xRot, 0, 1, 0);
+
+        indicatorNode->GetLocalTransform().LoadIdentity();
+        indicatorNode->GetLocalTransform().Translate(indicatorX, indicatorY, indicatorZ);
 
         rotate += 0.04f;
 

@@ -52,7 +52,7 @@ void SceneNode::Draw(){
 		m_object->Render();
 		// For any 'child nodes' also call the drawing routine.
 		for(int i =0; i < m_children.size(); ++i){
-			m_children[0]->Draw();
+			m_children[i]->Draw();
 		}
 	}	
 }
@@ -95,7 +95,7 @@ void SceneNode::Update(glm::mat4 projectionMatrix, Camera* camera){
 	
 		// Iterate through all of the children
 		for(int i =0; i < m_children.size(); ++i){
-			m_children[0]->Update(projectionMatrix, camera);
+			m_children[i]->Update(projectionMatrix, camera);
 		}
 	}
 }
