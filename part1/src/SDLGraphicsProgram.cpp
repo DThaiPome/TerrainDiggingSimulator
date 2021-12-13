@@ -6,6 +6,7 @@
 #include <string>
 #include <sstream>
 #include <fstream>
+#include <math.h>
 
 // Initialization function
 // Returns a true or false value based on successful completion of setup.
@@ -109,7 +110,25 @@ bool SDLGraphicsProgram::InitGL(){
 	return success;
 }
 
+float data_func(float x, float y, float z) {
+    return sin(x * 50) + cos(y * 50) + sin(z * 50);
+}
 
+float* make_data(unsigned int xSegs, unsigned int ySegs, unsigned int zSegs) {
+    float* result = new float[xSegs * ySegs * zSegs];
+    for(unsigned int z = 0; z < zSegs; z++) {
+        for(unsigned int y = 0; y < ySegs; y++) {
+            for(unsigned int x = 0; x < xSegs; x++) {
+                result[((z * (xSegs * ySegs)) + (y * xSegs) + x)] = data_func(
+                    static_cast<float>(x) / static_cast<float>(xSegs),
+                    static_cast<float>(y) / static_cast<float>(ySegs),
+                    static_cast<float>(z) / static_cast<float>(zSegs)
+                    );
+            }
+        }
+    }
+    return result;
+}
 
 //Loops forever!
 void SDLGraphicsProgram::Loop(){
@@ -167,7 +186,8 @@ void SDLGraphicsProgram::Loop(){
         0, 0, 0, 0, 0,
         0, 0, 0, 0, 0
     };
-    MarchingCubes* mc = new MarchingCubes(5, 5, 5, 2, 2, 2, data5, 0.5f);
+    float* bigData = make_data(50, 50, 50);
+    MarchingCubes* mc = new MarchingCubes(50, 50, 50, 2, 2, 2, bigData, 0.5f);
 
 	SceneNode* mcNode = new SceneNode(mc);
 	m_renderer->setRoot(mcNode);
