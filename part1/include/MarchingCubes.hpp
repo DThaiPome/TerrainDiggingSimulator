@@ -5,10 +5,18 @@
 #include <vector>
 #include <map>
 
+#ifdef USE_THREADS
+#include <mutex>
+#include <pthread.h>
+#endif
+
 class MarchingCubes : public Object { 
 public:
     MarchingCubes(unsigned int xSegs, unsigned int ySegs, unsigned int zSegs, float xDim, float yDim, float zDim, float* data, float surfaceLevel);
     ~MarchingCubes();
+
+    float* Subtract(float* subtractData);
+    float* SphereExplosionData(float radius, float noise, float originX, float originY, float originZ);
 private:
     struct Vector3 {
         float x;
@@ -46,6 +54,24 @@ private:
         std::vector<unsigned int> indices;
     };
 
+    struct MarchArgs {
+        MarchingCubes* obj;
+        unsigned int x;
+        unsigned int y;
+        unsigned int z;
+        unsigned int xSegs; 
+        unsigned int ySegs; 
+        unsigned int zSegs; 
+        float xUnit; 
+        float yUnit; 
+        float zUnit; 
+        float* data;
+        float surfaceLevel;
+        std::map<std::pair<IVector3, IVector3>, Vertex>* vertexMap;
+        std::vector<unsigned int>* indices;
+        unsigned int* globalIndex;
+    };
+
     MeshData march_cubes(unsigned int xSegs, unsigned int ySegs, unsigned int zSegs, float xUnit, float yUnit, float zUnit, float* data, float surfaceLevel);
 
     void fill_triangulations(const std::vector<std::pair<IVector3, IVector3>> & triangulation, std::map<std::pair<IVector3, IVector3>, MarchingCubes::Vertex> & vertexMap, std::vector<unsigned int> & indices, float* data, float surfaceLevel, float xSegs, float ySegs, float zSegs, float xUnit, float yUnit, float zUnit, unsigned int & globalIndex);
@@ -54,7 +80,35 @@ private:
 
     Vector3 triangle_normal(Vector3* positions);
 
-    std::vector<float> m_bufferData;
-    std::vector<unsigned int> m_indices;
+    static void* start_cube_thread(void* args) {
+        MarchArgs* mArgs = (MarchArgs*)args;
+        mArgs->obj->cube_thread(mArgs->x, mArgs->y, mArgs->z, mArgs->xSegs, mArgs->ySegs, mArgs->zSegs, mArgs->xUnit, mArgs->yUnit, mArgs->zUnit, mArgs->data, mArgs->surfaceLevel, *(mArgs->vertexMap), *(mArgs->indices), *(mArgs->globalIndex));
+        #ifdef USE_THREADS
+        pthread_exit(NULL);
+        #endif
+    }
+
+    void cube_thread(unsigned int x, unsigned int y, unsigned int z, unsigned int xSegs, unsigned int ySegs, unsigned int zSegs, float xUnit, float yUnit, float zUnit, float* data, float surfaceLevel, std::map<std::pair<IVector3, IVector3>, Vertex> & vertexMap, std::vector<unsigned int> & indices, unsigned int & globalIndex);
+
+    #ifdef USE_THREADS
+    std::mutex m_dataLock;
+    #endif
+
+    void lockData() {
+        #ifdef USE_THREADS
+        m_dataLock.lock();
+        #endif
+    }
+
+    void unlockData() {
+        #ifdef USE_THREADS
+        m_datalock.unlock();
+        #endif
+    }
+
+    float* m_data;
+    unsigned int m_xSegs;
+    unsigned int m_ySegs;
+    unsigned int m_zSegs;
 };
 #endif

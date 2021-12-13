@@ -110,8 +110,16 @@ bool SDLGraphicsProgram::InitGL(){
 	return success;
 }
 
+// float data_func(float x, float y, float z) {
+//     return sin(x * 35) + cos(y * 20) + sin(z * 10);
+// }
+
 float data_func(float x, float y, float z) {
-    return sin(x * 50) + cos(y * 50) + sin(z * 50);
+    if (x == 1 || y == 1 || z == 1) {
+        return 0;
+    } else {
+        return 1;
+    }
 }
 
 float* make_data(unsigned int xSegs, unsigned int ySegs, unsigned int zSegs) {
@@ -119,11 +127,19 @@ float* make_data(unsigned int xSegs, unsigned int ySegs, unsigned int zSegs) {
     for(unsigned int z = 0; z < zSegs; z++) {
         for(unsigned int y = 0; y < ySegs; y++) {
             for(unsigned int x = 0; x < xSegs; x++) {
-                result[((z * (xSegs * ySegs)) + (y * xSegs) + x)] = data_func(
-                    static_cast<float>(x) / static_cast<float>(xSegs),
-                    static_cast<float>(y) / static_cast<float>(ySegs),
-                    static_cast<float>(z) / static_cast<float>(zSegs)
-                    );
+                // result[((z * (xSegs * ySegs)) + (y * xSegs) + x)] = data_func(
+                //     static_cast<float>(x) / static_cast<float>(xSegs),
+                //     static_cast<float>(y) / static_cast<float>(ySegs),
+                //     static_cast<float>(z) / static_cast<float>(zSegs)
+                //     );
+                unsigned int index = ((z * (xSegs * ySegs)) + (y * xSegs) + x);
+                if (x == 0 || x == xSegs - 1
+                || y == 0 || y == ySegs - 1
+                || z == 0 || z == zSegs - 1) {
+                    result[index] = 0;
+                } else {
+                    result[index] = 1;
+                }
             }
         }
     }
@@ -186,8 +202,14 @@ void SDLGraphicsProgram::Loop(){
         0, 0, 0, 0, 0,
         0, 0, 0, 0, 0
     };
-    float* bigData = make_data(50, 50, 50);
-    MarchingCubes* mc = new MarchingCubes(50, 50, 50, 2, 2, 2, bigData, 0.5f);
+    float* bigData = make_data(35, 35, 35);
+    MarchingCubes* mc = new MarchingCubes(35, 35, 35, 2, 2, 2, bigData, 0.6f);
+    float* explodeData1 = mc->SphereExplosionData(10.0f, 1.0f, 30, 5, 15);
+    float* explodeData2 = mc->SphereExplosionData(10.0f, 1.0f, 15, 15, 10);
+    bigData = mc->Subtract(explodeData1);
+    bigData = mc->Subtract(explodeData2);
+    delete mc;
+    mc = new MarchingCubes(35, 35, 35, 2, 2, 2, bigData, 0.6f);
 
 	SceneNode* mcNode = new SceneNode(mc);
 	m_renderer->setRoot(mcNode);

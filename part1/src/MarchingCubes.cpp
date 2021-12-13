@@ -381,19 +381,55 @@ void MarchingCubes::fill_triangulations(const std::vector<std::pair<MarchingCube
             float valueA = data[get_3d_index(pointPairs[i].first.x, pointPairs[i].first.y, pointPairs[i].first.z, xSegs, ySegs, zSegs)];
             float valueB = data[get_3d_index(pointPairs[i].second.x, pointPairs[i].second.y, pointPairs[i].second.z, xSegs, ySegs, zSegs)];
             positions[i] = point_pair_to_position(pointPairs[i], origin, valueA, valueB, surfaceLevel, xUnit, yUnit, zUnit);
-            vertexMap[pointPairs[i]].position = positions[i];
         }
         Vector3 surfaceNormal = triangle_normal(positions);
         for(unsigned int i = 0; i < 3; i++) {
-            vertexMap[pointPairs[i]].normal = vertexMap[pointPairs[i]].normal + surfaceNormal;
-            if (vertexMap[pointPairs[i]].usageCount == 0) {
-                vertexMap[pointPairs[i]].index = globalIndex;
+            // Mutex lock
+            lockData();
+            Vertex v = vertexMap[pointPairs[i]];
+            v.position = positions[i];
+            v.normal = vertexMap[pointPairs[i]].normal + surfaceNormal;
+            if (v.usageCount == 0) {
+                v.index = globalIndex;
                 globalIndex++;
             }
-            vertexMap[pointPairs[i]].usageCount++;
-            indices.push_back(vertexMap[pointPairs[i]].index);
+            v.usageCount++;
+            indices.push_back(v.index);
+            vertexMap[pointPairs[i]] = v;
+            // Mutex unlock
+            unlockData();
         }
     }
+}
+
+void MarchingCubes::cube_thread(unsigned int x, unsigned int y, unsigned int z, unsigned int xSegs, unsigned int ySegs, unsigned int zSegs, float xUnit, float yUnit, float zUnit, float* data, float surfaceLevel, std::map<std::pair<MarchingCubes::IVector3, MarchingCubes::IVector3>, MarchingCubes::Vertex> & vertexMap, std::vector<unsigned int> & indices, unsigned int & globalIndex) {
+    IVector3 pointIndices[8] = {
+        { x, y, z },
+        { x + 1, y, z },
+        { x + 1, y, z + 1 },
+        { x, y, z + 1 },
+        { x, y + 1, z },
+        { x + 1, y + 1, z },
+        { x + 1, y + 1, z + 1 },
+        { x, y + 1, z + 1 }
+    };
+    float meshValues[8];
+    unsigned int meshPoints[8];
+    for(unsigned int i = 0; i < 8; i++) {
+        meshValues[i] = data[get_3d_index(pointIndices[i].x, pointIndices[i].y, pointIndices[i].z, xSegs, ySegs, zSegs)];
+        meshPoints[i] = above_surface(meshValues[i], surfaceLevel);
+    }
+    unsigned int index = triangulation_index(meshPoints);
+    std::vector<std::pair<unsigned int, unsigned int>> triangulation = index_triangulation_table(index);
+    std::vector<std::pair<IVector3, IVector3>> triangulationCoords;
+    for(unsigned int i = 0; i < triangulation.size(); i++) {
+        std::pair<unsigned int, unsigned int> vPair = triangulation[i];
+        std::pair<IVector3, IVector3> coordsPair = { pointIndices[vPair.first], pointIndices[vPair.second] };
+        triangulationCoords.push_back(coordsPair);
+    }
+
+    // Pass the triangulation to a function with the values, as well as the vertex map and some other stuff, and do some work!
+    fill_triangulations(triangulationCoords, vertexMap, indices, data, surfaceLevel, xSegs, ySegs, zSegs, xUnit, yUnit, zUnit, globalIndex);
 }
 
 MarchingCubes::MeshData MarchingCubes::march_cubes(unsigned int xSegs, unsigned int ySegs, unsigned int zSegs, float xUnit, float yUnit, float zUnit, float* data, float surfaceLevel) {
@@ -401,39 +437,48 @@ MarchingCubes::MeshData MarchingCubes::march_cubes(unsigned int xSegs, unsigned 
     std::vector<unsigned int> indices;
     unsigned int globalIndex = 0;
 
+    #ifdef USE_THREADS
+    size_t numThreads = (xSegs - 1) * (ySegs - 1) * (zSegs - 1);
+    pthread_t threads[numThreads];
+
+    size_t threadCounter = 0;
+    #endif
     for(unsigned int z = 0; z < zSegs - 1; z++) {
         for(unsigned int y = 0; y < ySegs - 1; y++) {
             for(unsigned int x = 0; x < xSegs - 1; x++) {
-                IVector3 pointIndices[8] = {
-                    { x, y, z },
-                    { x + 1, y, z },
-                    { x + 1, y, z + 1 },
-                    { x, y, z + 1 },
-                    { x, y + 1, z },
-                    { x + 1, y + 1, z },
-                    { x + 1, y + 1, z + 1 },
-                    { x, y + 1, z + 1 }
+                MarchArgs mArgs = {
+                    this,
+                    x,
+                    y,
+                    z,
+                    xSegs,
+                    ySegs,
+                    zSegs,
+                    xUnit,
+                    yUnit,
+                    zUnit,
+                    data,
+                    surfaceLevel,
+                    &vertexMap,
+                    &indices,
+                    &globalIndex
                 };
-                float meshValues[8];
-                unsigned int meshPoints[8];
-                for(unsigned int i = 0; i < 8; i++) {
-                    meshValues[i] = data[get_3d_index(pointIndices[i].x, pointIndices[i].y, pointIndices[i].z, xSegs, ySegs, zSegs)];
-                    meshPoints[i] = above_surface(meshValues[i], surfaceLevel);
-                }
-                unsigned int index = triangulation_index(meshPoints);
-                std::vector<std::pair<unsigned int, unsigned int>> triangulation = index_triangulation_table(index);
-                std::vector<std::pair<IVector3, IVector3>> triangulationCoords;
-                for(unsigned int i = 0; i < triangulation.size(); i++) {
-                    std::pair<unsigned int, unsigned int> vPair = triangulation[i];
-                    std::pair<IVector3, IVector3> coordsPair = { pointIndices[vPair.first], pointIndices[vPair.second] };
-                    triangulationCoords.push_back(coordsPair);
-                }
-
-                // Pass the triangulation to a function with the values, as well as the vertex map and some other stuff, and do some work!
-                fill_triangulations(triangulationCoords, vertexMap, indices, data, surfaceLevel, xSegs, ySegs, zSegs, xUnit, yUnit, zUnit, globalIndex);
+                #ifdef USE_THREADS
+                pthread_create(&threads[threadCounter], NULL, start_cube_thread, (void *)(&mArgs));
+                #else
+                start_cube_thread(&mArgs);
+                #endif
             }
         }
     }
+
+    #ifdef USE_THREADS
+    // JOIN THREADS
+    for(size_t i = 0; i < numThreads; i++) {
+        void* status;
+        pthread_join(threads[i], &status);
+    }
+    #endif
 
     std::vector<Vertex> vertices;
     for(auto it = vertexMap.begin(); it != vertexMap.end(); it++) {
@@ -444,6 +489,11 @@ MarchingCubes::MeshData MarchingCubes::march_cubes(unsigned int xSegs, unsigned 
 }
 
 MarchingCubes::MarchingCubes(unsigned int xSegs, unsigned int ySegs, unsigned int zSegs, float xDim, float yDim, float zDim, float* data, float surfaceLevel) : Object() {
+    m_data = data;
+    m_xSegs = xSegs;
+    m_ySegs = ySegs;
+    m_zSegs = zSegs;
+
     // to make the mesh, we need a list of vertices and a list of indices
     // then we take all of these values and add them to our geometry!
     // and that's basically it
@@ -499,4 +549,39 @@ MarchingCubes::MarchingCubes(unsigned int xSegs, unsigned int ySegs, unsigned in
 
 MarchingCubes::~MarchingCubes() {
 
+}
+
+float* MarchingCubes::Subtract(float* subtractData) {
+    for(size_t z = 0; z < m_zSegs; z++) {
+        for(size_t y = 0; y < m_ySegs; y++) {
+            for(size_t x = 0; x < m_xSegs; x++) {
+                unsigned int index = get_3d_index(x, y, z, m_xSegs, m_ySegs, m_zSegs);
+                m_data[index] -= subtractData[index];
+                if (m_data[index] < 0) {
+                    m_data[index] = 0;
+                }
+            }
+        }
+    }
+    return m_data;
+}
+
+float* MarchingCubes::SphereExplosionData(float radius, float noise, float originX, float originY, float originZ) {
+    float* data = new float[m_xSegs * m_ySegs * m_zSegs];
+    for(size_t z = 0; z < m_zSegs; z++) {
+        for(size_t y = 0; y < m_ySegs; y++) {
+            for(size_t x = 0; x < m_xSegs; x++) {
+                float distance = sqrt(
+                    pow((originX - x), 2.0f) +
+                    pow((originY - y), 2.0f) +
+                    pow((originZ - z), 2.0f));
+                if (distance < radius) {
+                    data[get_3d_index(x, y, z, m_xSegs, m_ySegs, m_zSegs)] = 1 / cosh(pow(3.0f, 1.0f - (log(radius) / log(3.0f))));
+                } else {
+                    data[get_3d_index(x, y, z, m_xSegs, m_ySegs, m_zSegs)] = 0;
+                }
+            }
+        }
+    }
+    return data;
 }
