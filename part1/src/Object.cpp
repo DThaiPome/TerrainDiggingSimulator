@@ -15,7 +15,7 @@ Object::~Object(){
 // if the user forgets to do this action!
 void Object::LoadTexture(std::string fileName){
         // Load our actual textures
-        // m_textureDiffuse.LoadTexture(fileName);
+        m_textureDiffuse.LoadTexture(fileName);
 }
 
 // Bind everything we need in our object
@@ -25,7 +25,7 @@ void Object::Bind(){
         // Make sure we are updating the correct 'buffers'
         m_vertexBufferLayout.Bind();
         // Diffuse map is 0 by default, but it is good to set it explicitly
-        // m_textureDiffuse.Bind(0);
+        m_textureDiffuse.Bind(0);
 }
 
 // Render our geometry

@@ -1,6 +1,8 @@
 #include "MarchingCubes.hpp"
 #include <math.h>
 #include <utility>
+#include <glm/glm.hpp>
+#include <glm/gtx/rotate_vector.hpp>
 
 // TRIANGULATION TABLE
 static int triangulation[256][16] = {
@@ -340,23 +342,30 @@ MarchingCubes::Vector3 MarchingCubes::point_pair_to_position(std::pair<MarchingC
     return result;
 }
 
-MarchingCubes::Vector3 MarchingCubes::triangle_normal(MarchingCubes::Vector3* positions) {
-    Vector3 vA = {
-        positions[1].x - positions[0].x,
-        positions[1].y - positions[0].y,
-        positions[1].z - positions[0].z
-    };
-    Vector3 vB = {
-        positions[2].x - positions[0].x,
-        positions[2].y - positions[0].y,
-        positions[2].z - positions[0].z
-    };
-
+inline MarchingCubes::Vector3 MarchingCubes::cross_product(MarchingCubes::Vector3 vA, MarchingCubes::Vector3 vB) {
     return {
         (vA.y * vB.z) - (vA.z * vB.y),
         (vA.z * vB.x) - (vA.x * vB.z),
         (vA.x * vB.y) - (vA.y * vB.x)
     };
+}
+
+inline MarchingCubes::Vector3 MarchingCubes::get_vector(MarchingCubes::Vector3 vA, MarchingCubes::Vector3 vB) {
+    return {
+        vB.x - vA.x,
+        vB.y - vA.y,
+        vB.z - vA.z
+    };
+}
+
+inline float MarchingCubes::dot(MarchingCubes::Vector3 vA, MarchingCubes::Vector3 vB) {
+    return (vA.x * vB.x) + (vA.y * vB.y) + (vA.z * vB.z);
+}
+
+MarchingCubes::Vector3 MarchingCubes::triangle_normal(MarchingCubes::Vector3* positions) {
+    Vector3 vA = get_vector(positions[0], positions[1]);
+    Vector3 vB = get_vector(positions[0], positions[2]);
+    return cross_product(vA, vB);
 }
 
 void MarchingCubes::fill_triangulations(const std::vector<std::pair<MarchingCubes::IVector3, MarchingCubes::IVector3>> & triangulation, std::map<std::pair<MarchingCubes::IVector3, MarchingCubes::IVector3>, MarchingCubes::Vertex> & vertexMap, std::vector<unsigned int> & indices, float* data, float surfaceLevel, float xSegs, float ySegs, float zSegs, float xUnit, float yUnit, float zUnit, unsigned int & globalIndex) {
@@ -495,7 +504,10 @@ void MarchingCubes::Init(float xDim, float yDim, float zDim, float surfaceLevel)
     // to make the mesh, we need a list of vertices and a list of indices
     // then we take all of these values and add them to our geometry!
     // and that's basically it
-    MeshData md = march_cubes(m_xSegs, m_ySegs, m_zSegs, xDim / m_xSegs, yDim / m_ySegs, zDim / m_zSegs, m_data, surfaceLevel);
+    float xUnit = xDim / m_xSegs;
+    float yUnit = yDim / m_ySegs;
+    float zUnit = zDim / m_zSegs;
+    MeshData md = march_cubes(m_xSegs, m_ySegs, m_zSegs, xUnit, yUnit, zUnit, m_data, surfaceLevel);
 
     size_t vertexCount = md.vertices.size();
     for(unsigned int i = 0; i < vertexCount; i++) {
@@ -507,6 +519,9 @@ void MarchingCubes::Init(float xDim, float yDim, float zDim, float surfaceLevel)
             i--;
         }
     }
+    glm::vec3 texNormal = glm::vec3(
+        0, 0, 1
+    );
     for(auto it = md.vertices.begin(); it != md.vertices.end(); it++) {
         Vertex v = *it;
         Vector3 avgNormal = {
@@ -514,21 +529,39 @@ void MarchingCubes::Init(float xDim, float yDim, float zDim, float surfaceLevel)
             v.normal.y / v.usageCount,
             v.normal.z / v.usageCount
         };
+        glm::vec3 normal(
+            avgNormal.x,
+            avgNormal.y,
+            avgNormal.z
+        );
 
-        // Texture coords here
-        // Get basis for plane that matches the vert's normal
-        // Get coordinate of this vert, but with z = 0
-        // Get coordinate of (0, 0), but with z = 0
-        // Get coordinate of bottom left (-xUnit, -yUnit) but with z = 0
-        // Get coordinate of top right (xUnit, yUnit) but with z = 0
-        // 
+        float angle = acos(glm::dot(texNormal, normal) / (texNormal.length() * normal.length()));
+        glm::vec3 axis = glm::cross(normal, texNormal);
+        glm::vec3 position = {
+            v.position.x,
+            v.position.y,
+            v.position.z
+        };
+        glm::vec4 texPosition = glm::rotate(glm::mat4(), angle, axis) * glm::vec4(position, 1.0);
+        if (glm::all(glm::isnan(texPosition))) {
+            texPosition = glm::vec4(position, 1);
+        }
+
+        float xRange = static_cast<float>(m_xSegs) * xUnit;
+        float yRange = static_cast<float>(m_ySegs) * yUnit;
+
+        Vector3 texCoords = {
+            (texPosition.x + (xRange / 2)) / xRange,
+            (texPosition.y + (yRange / 2)) / yRange,
+            0
+        };
 
         m_geometry.AddVertex(
             v.position.x,
             v.position.y,
             v.position.z,
-            v.position.x,
-            v.position.y,
+            texCoords.x,
+            texCoords.y,
             avgNormal.x,
             avgNormal.y,
             avgNormal.z

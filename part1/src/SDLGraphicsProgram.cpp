@@ -214,6 +214,7 @@ void SDLGraphicsProgram::Loop(){
     };
     float* bigData = make_data(25, 25, 25);
     MarchingCubes* mc = new MarchingCubes(25, 25, 25, 2, 2, 2, bigData, 0.6f);
+    mc->LoadTexture("./rock.ppm");
 	SceneNode* mcNode = new SceneNode(mc);
 
     float indicatorX = 0;
@@ -221,6 +222,7 @@ void SDLGraphicsProgram::Loop(){
     float indicatorZ = 0;
     float indicatorSpeed = 0.04f;
     MarchingCubes* indicator = new MarchingCubes(3, 3, 3, 1, 1, 1, data3, 0.5f);
+    indicator->LoadTexture("./sun.ppm");
     SceneNode* indicatorNode = new SceneNode(indicator);
 
     EmptyObject* root = new EmptyObject();

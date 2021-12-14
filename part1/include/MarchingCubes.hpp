@@ -123,13 +123,17 @@ private:
 
     Vector3 triangle_normal(Vector3* positions);
 
+    inline Vector3 cross_product(Vector3 vA, Vector3 vB);
+
+    inline Vector3 get_vector(Vector3 vA, Vector3 vB);
+
+    inline float dot(Vector3 vA, Vector3 vB);
+
     void start_cube_thread(MarchArgs* mArgs) {
         cube_thread(mArgs->x, mArgs->y, mArgs->z, mArgs->xSegs, mArgs->ySegs, mArgs->zSegs, mArgs->xUnit, mArgs->yUnit, mArgs->zUnit, mArgs->data, mArgs->surfaceLevel, *(mArgs->vertexMap), *(mArgs->indices), *(mArgs->globalIndex));
     }
 
     void cube_thread(unsigned int x, unsigned int y, unsigned int z, unsigned int xSegs, unsigned int ySegs, unsigned int zSegs, float xUnit, float yUnit, float zUnit, float* data, float surfaceLevel, std::map<std::pair<IVector3, IVector3>, Vertex> & vertexMap, std::vector<unsigned int> & indices, unsigned int & globalIndex);
-
-    void init();
 
     #ifdef USE_THREADS
     pthread_mutex_t m_dataLock;
