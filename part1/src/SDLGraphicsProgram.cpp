@@ -145,11 +145,11 @@ inline float clampf(float val, float min, float max) {
 
 void dig(MarchingCubes* mc, float indicatorX, float indicatorY, float indicatorZ) {
     indicatorX += 1;
-    indicatorX *= 10;
+    indicatorX *= 12.5f;
     indicatorY += 1;
-    indicatorY *= 10;
+    indicatorY *= 12.5f;
     indicatorZ += 1;
-    indicatorZ *= 10;
+    indicatorZ *= 12.5f;
     float* sphereData = mc->SphereExplosionData(3, 0, indicatorX, indicatorY, indicatorZ);
     mc->Subtract(sphereData);
     mc->Init(2, 2, 2, 0.6f);
@@ -212,8 +212,8 @@ void SDLGraphicsProgram::Loop(){
         0, 0, 0, 0, 0,
         0, 0, 0, 0, 0
     };
-    float* bigData = make_data(20, 20, 20);
-    MarchingCubes* mc = new MarchingCubes(20, 20, 20, 2, 2, 2, bigData, 0.6f);
+    float* bigData = make_data(25, 25, 25);
+    MarchingCubes* mc = new MarchingCubes(25, 25, 25, 2, 2, 2, bigData, 0.6f);
 	SceneNode* mcNode = new SceneNode(mc);
 
     float indicatorX = 0;
@@ -273,7 +273,7 @@ void SDLGraphicsProgram::Loop(){
                             break;
                         case SDLK_r:
                             {
-                                float* resetData = make_data(20, 20, 20);
+                                float* resetData = make_data(25, 25, 25);
                                 mc->SetData(resetData);
                                 delete[] resetData;
                                 mc->Init(2, 2, 2, 0.6f);

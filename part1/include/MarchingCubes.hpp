@@ -4,10 +4,14 @@
 #include "Object.hpp"
 #include <vector>
 #include <map>
+#include <unistd.h>
+
+#define USE_THREADS
+#define NUM_THREADS 8
 
 #ifdef USE_THREADS
-#include <boost/interprocess/sync/interprocess_mutex.hpp>
-#include <boost/thread.hpp>
+#include <pthread.h>
+#include <windows.h>
 #endif
 
 class MarchingCubes : public Object { 
@@ -75,6 +79,60 @@ private:
         unsigned int* globalIndex;
     };
 
+    struct ThreadObj {
+        pthread_t m_tid;
+        pthread_mutex_t m_lock;
+        std::vector<MarchArgs> m_queue;
+        bool m_active;
+
+        void AddJob(MarchArgs ma) {
+            pthread_mutex_lock(&m_lock);
+            m_queue.push_back(ma);
+            pthread_mutex_unlock(&m_lock);
+        }
+
+        void Init() {
+            pthread_mutex_init(&m_lock, NULL);
+            pthread_create(&m_tid, NULL, DoWork, (void*)this);
+        }
+
+        void Start() {
+            pthread_mutex_lock(&m_lock);
+            m_active = true;
+            pthread_mutex_unlock(&m_lock);
+        }
+
+        void Stop() {
+            pthread_mutex_lock(&m_lock);
+            m_active = false;
+            pthread_mutex_unlock(&m_lock);
+        }
+
+        bool ReadActive() {
+            pthread_mutex_lock(&m_lock);
+            bool active = m_active;
+            pthread_mutex_unlock(&m_lock);
+            return active;
+        }
+
+        static void* DoWork(void * self) {
+            ThreadObj* threadObj = (ThreadObj*)self;
+            while(true) {
+                Sleep(1);
+                pthread_mutex_lock(&(threadObj->m_lock));
+                if (threadObj->m_active && threadObj->m_queue.size() > 0) {
+                    for(size_t i = 0; i < threadObj->m_queue.size(); i++) {
+                        MarchArgs ma = threadObj->m_queue[i];
+                        start_cube_thread((void*)(&ma));
+                    }
+                    threadObj->m_queue.clear();
+                    threadObj->m_active = false;
+                }
+                pthread_mutex_unlock(&(threadObj->m_lock));
+            }
+        }
+    };
+
     MeshData march_cubes(unsigned int xSegs, unsigned int ySegs, unsigned int zSegs, float xUnit, float yUnit, float zUnit, float* data, float surfaceLevel);
 
     void fill_triangulations(const std::vector<std::pair<IVector3, IVector3>> & triangulation, std::map<std::pair<IVector3, IVector3>, MarchingCubes::Vertex> & vertexMap, std::vector<unsigned int> & indices, float* data, float surfaceLevel, float xSegs, float ySegs, float zSegs, float xUnit, float yUnit, float zUnit, unsigned int & globalIndex);
@@ -93,18 +151,18 @@ private:
     void init();
 
     #ifdef USE_THREADS
-    boost::interprocess::interprocess_mutex m_dataLock;
+    pthread_mutex_t m_dataLock;
     #endif
 
     void lockData() {
         #ifdef USE_THREADS
-        m_dataLock.lock();
+        pthread_mutex_lock(&m_dataLock);
         #endif
     }
 
     void unlockData() {
         #ifdef USE_THREADS
-        m_dataLock.unlock();
+        pthread_mutex_unlock(&m_dataLock);
         #endif
     }
 
@@ -112,5 +170,6 @@ private:
     unsigned int m_xSegs;
     unsigned int m_ySegs;
     unsigned int m_zSegs;
+    ThreadObj threads[NUM_THREADS];
 };
 #endif

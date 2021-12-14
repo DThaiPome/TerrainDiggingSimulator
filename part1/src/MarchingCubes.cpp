@@ -383,12 +383,12 @@ void MarchingCubes::fill_triangulations(const std::vector<std::pair<MarchingCube
             positions[i] = point_pair_to_position(pointPairs[i], origin, valueA, valueB, surfaceLevel, xUnit, yUnit, zUnit);
         }
         Vector3 surfaceNormal = triangle_normal(positions);
+        // Mutex lock
+        lockData();
         for(unsigned int i = 0; i < 3; i++) {
-            // Mutex lock
-            lockData();
             Vertex v = vertexMap[pointPairs[i]];
             v.position = positions[i];
-            v.normal = vertexMap[pointPairs[i]].normal + surfaceNormal;
+            v.normal = v.normal + surfaceNormal;
             if (v.usageCount == 0) {
                 v.index = globalIndex;
                 globalIndex++;
@@ -396,9 +396,9 @@ void MarchingCubes::fill_triangulations(const std::vector<std::pair<MarchingCube
             v.usageCount++;
             indices.push_back(v.index);
             vertexMap[pointPairs[i]] = v;
-            // Mutex unlock
-            unlockData();
         }
+        // Mutex unlock
+        unlockData();
     }
 }
 
@@ -429,6 +429,9 @@ void MarchingCubes::cube_thread(unsigned int x, unsigned int y, unsigned int z, 
     }
 
     // Pass the triangulation to a function with the values, as well as the vertex map and some other stuff, and do some work!
+    size_t size = triangulationCoords.size();
+    size++;
+    size--;
     fill_triangulations(triangulationCoords, vertexMap, indices, data, surfaceLevel, xSegs, ySegs, zSegs, xUnit, yUnit, zUnit, globalIndex);
 }
 
@@ -438,15 +441,14 @@ MarchingCubes::MeshData MarchingCubes::march_cubes(unsigned int xSegs, unsigned 
     unsigned int globalIndex = 0;
 
     #ifdef USE_THREADS
-    size_t numThreads = (xSegs - 1) * (ySegs - 1) * (zSegs - 1);
-    boost::thread threads[numThreads];
+    size_t numCubes = (xSegs - 1) * (ySegs - 1) * (zSegs - 1);
 
     size_t threadCounter = 0;
     #endif
     for(unsigned int z = 0; z < zSegs - 1; z++) {
         for(unsigned int y = 0; y < ySegs - 1; y++) {
             for(unsigned int x = 0; x < xSegs - 1; x++) {
-                MarchArgs mArgs = {
+                threads[threadCounter].AddJob({
                     this,
                     x,
                     y,
@@ -462,20 +464,24 @@ MarchingCubes::MeshData MarchingCubes::march_cubes(unsigned int xSegs, unsigned 
                     &vertexMap,
                     &indices,
                     &globalIndex
-                };
-                #ifdef USE_THREADS
-                threads[threadCounter] = boost::thread(start_cube_thread, (void *)(&mArgs));
-                #else
-                start_cube_thread(&mArgs);
-                #endif
+                });
+                threadCounter++;
+                threadCounter %= NUM_THREADS;
             }
         }
     }
 
     #ifdef USE_THREADS
+    // START THREADS
+    for(size_t i = 0; i < NUM_THREADS; i++) {
+        threads[i].Start();
+    }
+
     // JOIN THREADS
-    for(size_t i = 0; i < numThreads; i++) {
-        threads[i].join();
+    for(size_t i = 0; i < NUM_THREADS; i++) {
+        while(threads[i].ReadActive()) { 
+            threadCounter++;
+        }
     }
     #endif
 
@@ -483,6 +489,8 @@ MarchingCubes::MeshData MarchingCubes::march_cubes(unsigned int xSegs, unsigned 
     for(auto it = vertexMap.begin(); it != vertexMap.end(); it++) {
         vertices.push_back((*it).second);
     }
+    size_t size = vertices.size();
+    size = size;
 
     return { vertices, indices };
 }
@@ -513,6 +521,14 @@ void MarchingCubes::Init(float xDim, float yDim, float zDim, float surfaceLevel)
             v.normal.y / v.usageCount,
             v.normal.z / v.usageCount
         };
+
+        // Texture coords here
+        // Get basis for plane that matches the vert's normal
+        // Get coordinate of this vert, but with z = 0
+        // Get coordinate of (0, 0), but with z = 0
+        // Get coordinate of bottom left (-xUnit, -yUnit) but with z = 0
+        // Get coordinate of top right (xUnit, yUnit) but with z = 0
+        // 
 
         m_geometry.AddVertex(
             v.position.x,
@@ -545,6 +561,13 @@ void MarchingCubes::Init(float xDim, float yDim, float zDim, float surfaceLevel)
 }
 
 MarchingCubes::MarchingCubes(unsigned int xSegs, unsigned int ySegs, unsigned int zSegs, float xDim, float yDim, float zDim, float* data, float surfaceLevel) : Object() {
+    #ifdef USE_THREADS
+    pthread_mutex_init(&m_dataLock, NULL);
+    for(size_t i = 0; i < NUM_THREADS; i++) {
+        threads[i].Init();
+    }
+    #endif
+
     m_data = data;
     m_xSegs = xSegs;
     m_ySegs = ySegs;
