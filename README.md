@@ -1,8 +1,8 @@
 https://www.youtube.com/watch?v=fWhEbZEGT7k&ab_channel=RyanGehrlein
 
-<img src=".part1/media/Screenshot_1.png">
-<img src=".part1/media/Screenshot_2.png">
-<img src=".part1/media/Screenshot_3.png">
+<img src="./part1/media/Screenshot_1.png">
+<img src="./part1/media/Screenshot_2.png">
+<img src="./part1/media/Screenshot_3.png">
 
 * Name and partners name(At most teams of 2 folks total)
   * Team member 1: Ryan Gehrlein
