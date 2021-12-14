@@ -535,16 +535,21 @@ void MarchingCubes::Init(float xDim, float yDim, float zDim, float surfaceLevel)
             avgNormal.z
         );
 
-        float angle = acos(glm::dot(texNormal, normal) / (texNormal.length() * normal.length()));
-        glm::vec3 axis = glm::cross(normal, texNormal);
+        glm::vec4 texPosition;
+        float dot = glm::dot(texNormal, normal);
+        float unitDot = glm::dot(glm::normalize(texNormal), glm::normalize(normal));
+        float product = texNormal.length() * normal.length();
         glm::vec3 position = {
             v.position.x,
             v.position.y,
             v.position.z
         };
-        glm::vec4 texPosition = glm::rotate(glm::mat4(), angle, axis) * glm::vec4(position, 1.0);
-        if (glm::all(glm::isnan(texPosition))) {
+        if (abs(unitDot) > 0.99f) {
             texPosition = glm::vec4(position, 1);
+        } else {
+            float angle = acos(dot / product);
+            glm::vec3 axis = glm::cross(normal, texNormal);
+            texPosition = glm::rotate(glm::mat4(), angle, axis) * glm::vec4(position, 1.0);
         }
 
         float xRange = static_cast<float>(m_xSegs) * xUnit;
