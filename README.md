@@ -26,7 +26,7 @@ https://www.youtube.com/watch?v=fWhEbZEGT7k&ab_channel=RyanGehrlein
 * Click and drag to rotate the cube
 * Hold X for another interesting way to carve the cube :)
 
-## NOTES **
+## NOTES
 
 * In my video my cube's resolution is 25x25x25. This is pushing my laptop to its limits; for this submission I put it slightly down to 20x20x20 so that I don't burn anyone's computer.
 * Requires an environment with pthread support (because that's all that would work on my environment!)
