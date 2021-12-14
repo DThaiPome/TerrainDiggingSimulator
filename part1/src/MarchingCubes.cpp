@@ -429,9 +429,6 @@ void MarchingCubes::cube_thread(unsigned int x, unsigned int y, unsigned int z, 
     }
 
     // Pass the triangulation to a function with the values, as well as the vertex map and some other stuff, and do some work!
-    size_t size = triangulationCoords.size();
-    size++;
-    size--;
     fill_triangulations(triangulationCoords, vertexMap, indices, data, surfaceLevel, xSegs, ySegs, zSegs, xUnit, yUnit, zUnit, globalIndex);
 }
 
@@ -478,11 +475,7 @@ MarchingCubes::MeshData MarchingCubes::march_cubes(unsigned int xSegs, unsigned 
     }
 
     // JOIN THREADS
-    for(size_t i = 0; i < NUM_THREADS; i++) {
-        while(threads[i].ReadActive()) { 
-            threadCounter++;
-        }
-    }
+    pthread_barrier_wait(&m_barrier);
     #endif
 
     std::vector<Vertex> vertices;
@@ -563,8 +556,9 @@ void MarchingCubes::Init(float xDim, float yDim, float zDim, float surfaceLevel)
 MarchingCubes::MarchingCubes(unsigned int xSegs, unsigned int ySegs, unsigned int zSegs, float xDim, float yDim, float zDim, float* data, float surfaceLevel) : Object() {
     #ifdef USE_THREADS
     pthread_mutex_init(&m_dataLock, NULL);
+    pthread_barrier_init(&m_barrier, NULL, NUM_THREADS + 1);
     for(size_t i = 0; i < NUM_THREADS; i++) {
-        threads[i].Init();
+        threads[i].Init(&m_barrier);
     }
     #endif
 

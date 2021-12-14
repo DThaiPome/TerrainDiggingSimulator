@@ -7,10 +7,11 @@
 #include <unistd.h>
 
 #define USE_THREADS
-#define NUM_THREADS 8
+#define NUM_THREADS 12
 
 #ifdef USE_THREADS
 #include <pthread.h>
+#include <semaphore.h>
 #include <windows.h>
 #endif
 
@@ -81,54 +82,35 @@ private:
 
     struct ThreadObj {
         pthread_t m_tid;
-        pthread_mutex_t m_lock;
+        pthread_barrier_t* m_barrierCopy;
+        sem_t m_semaphore;
         std::vector<MarchArgs> m_queue;
-        bool m_active;
 
         void AddJob(MarchArgs ma) {
-            pthread_mutex_lock(&m_lock);
             m_queue.push_back(ma);
-            pthread_mutex_unlock(&m_lock);
         }
 
-        void Init() {
-            pthread_mutex_init(&m_lock, NULL);
+        void Init(pthread_barrier_t* barrier) {
+            sem_init(&m_semaphore, 0, 0);
+            m_barrierCopy = barrier;
             pthread_create(&m_tid, NULL, DoWork, (void*)this);
         }
 
         void Start() {
-            pthread_mutex_lock(&m_lock);
-            m_active = true;
-            pthread_mutex_unlock(&m_lock);
-        }
-
-        void Stop() {
-            pthread_mutex_lock(&m_lock);
-            m_active = false;
-            pthread_mutex_unlock(&m_lock);
-        }
-
-        bool ReadActive() {
-            pthread_mutex_lock(&m_lock);
-            bool active = m_active;
-            pthread_mutex_unlock(&m_lock);
-            return active;
+            sem_post(&m_semaphore);
         }
 
         static void* DoWork(void * self) {
             ThreadObj* threadObj = (ThreadObj*)self;
             while(true) {
-                Sleep(1);
-                pthread_mutex_lock(&(threadObj->m_lock));
-                if (threadObj->m_active && threadObj->m_queue.size() > 0) {
-                    for(size_t i = 0; i < threadObj->m_queue.size(); i++) {
-                        MarchArgs ma = threadObj->m_queue[i];
-                        start_cube_thread((void*)(&ma));
-                    }
-                    threadObj->m_queue.clear();
-                    threadObj->m_active = false;
+                sem_wait(&(threadObj->m_semaphore));
+                for(size_t i = 0; i < (threadObj->m_queue).size(); i++) {
+                    MarchArgs ma = (threadObj->m_queue)[i];
+                    ma.obj->start_cube_thread(&ma);
                 }
-                pthread_mutex_unlock(&(threadObj->m_lock));
+                threadObj->m_queue.clear();
+
+                pthread_barrier_wait(threadObj->m_barrierCopy);
             }
         }
     };
@@ -141,9 +123,8 @@ private:
 
     Vector3 triangle_normal(Vector3* positions);
 
-    static void* start_cube_thread(void* args) {
-        MarchArgs* mArgs = (MarchArgs*)args;
-        mArgs->obj->cube_thread(mArgs->x, mArgs->y, mArgs->z, mArgs->xSegs, mArgs->ySegs, mArgs->zSegs, mArgs->xUnit, mArgs->yUnit, mArgs->zUnit, mArgs->data, mArgs->surfaceLevel, *(mArgs->vertexMap), *(mArgs->indices), *(mArgs->globalIndex));
+    void start_cube_thread(MarchArgs* mArgs) {
+        cube_thread(mArgs->x, mArgs->y, mArgs->z, mArgs->xSegs, mArgs->ySegs, mArgs->zSegs, mArgs->xUnit, mArgs->yUnit, mArgs->zUnit, mArgs->data, mArgs->surfaceLevel, *(mArgs->vertexMap), *(mArgs->indices), *(mArgs->globalIndex));
     }
 
     void cube_thread(unsigned int x, unsigned int y, unsigned int z, unsigned int xSegs, unsigned int ySegs, unsigned int zSegs, float xUnit, float yUnit, float zUnit, float* data, float surfaceLevel, std::map<std::pair<IVector3, IVector3>, Vertex> & vertexMap, std::vector<unsigned int> & indices, unsigned int & globalIndex);
@@ -152,6 +133,7 @@ private:
 
     #ifdef USE_THREADS
     pthread_mutex_t m_dataLock;
+    pthread_barrier_t m_barrier;
     #endif
 
     void lockData() {
