@@ -24,11 +24,11 @@ elif platform.system()=="Darwin":
     INCLUDE_DIR="-I ./include/ -I/Library/Frameworks/SDL2.framework/Headers -I./include/old/glm"
     LIBRARIES="-F/Library/Frameworks -framework SDL2"
 elif platform.system()=="Windows":
-    COMPILER="g++ -std=c++17" # Note we use g++ here as it is more likely what you have
-    ARGUMENTS="-D MINGW -std=c++17 -static-libgcc -static-libstdc++" 
+    COMPILER="g++ -std=c++17 -O3" # Note we use g++ here as it is more likely what you have
+    ARGUMENTS="-D MINGW -std=c++17 -static-libgcc -static-libstdc++ -Wdeprecated-declarations" 
     INCLUDE_DIR="-I./include/ -I./include/old/glm/"
     EXECUTABLE="project.exe"
-    LIBRARIES="-lmingw32 -lSDL2main -lSDL2 -mwindows"
+    LIBRARIES="-lmingw32 -lSDL2main -lSDL2 -mwindows -lpthread"
 # (2)=================== Platform specific configuration ===================== #
 
 # (3)====================== Building the Executable ========================== #

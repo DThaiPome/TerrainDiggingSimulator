@@ -4,7 +4,7 @@
 #include <glm/glm.hpp>
 #include <glm/gtx/rotate_vector.hpp>
 
-// TRIANGULATION TABLE
+// TRIANGULATION TABLE (Taken from here https://github.com/SebLague/Marching-Cubes/blob/master/Assets/Scripts/Compute/Includes/MarchTables.compute)
 static int triangulation[256][16] = {
     {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1 },
     { 0, 8, 3, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1 },
@@ -535,6 +535,7 @@ void MarchingCubes::Init(float xDim, float yDim, float zDim, float surfaceLevel)
             avgNormal.z
         );
 
+        // Doing some math to get a texture mapping that doesn't look completely stupid
         glm::vec4 texPosition;
         float dot = glm::dot(texNormal, normal);
         float unitDot = glm::dot(glm::normalize(texNormal), glm::normalize(normal));
@@ -580,11 +581,8 @@ void MarchingCubes::Init(float xDim, float yDim, float zDim, float surfaceLevel)
         m_geometry.AddIndex(*it);
     }
 
-    // Finally generate a simple 'array of bytes' that contains
-    // everything for our buffer to work with.
     m_geometry.Gen();
 
-    // Create a buffer and set the stride of information
     m_vertexBufferLayout.CreateNormalBufferLayout(m_geometry.GetBufferDataSize(),
                                             m_geometry.GetIndicesSize(),
                                             m_geometry.GetBufferDataPtr(),
@@ -627,6 +625,7 @@ float* MarchingCubes::Subtract(float* subtractData) {
     return m_data;
 }
 
+// This was going to have some random noise in it but I decided against it
 float* MarchingCubes::SphereExplosionData(float radius, float noise, float originX, float originY, float originZ) {
     float* data = new float[m_xSegs * m_ySegs * m_zSegs];
     for(size_t z = 0; z < m_zSegs; z++) {

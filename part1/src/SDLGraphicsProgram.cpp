@@ -212,8 +212,8 @@ void SDLGraphicsProgram::Loop(){
         0, 0, 0, 0, 0,
         0, 0, 0, 0, 0
     };
-    float* bigData = make_data(25, 25, 25);
-    MarchingCubes* mc = new MarchingCubes(25, 25, 25, 2, 2, 2, bigData, 0.6f);
+    float* bigData = make_data(20, 20, 20);
+    MarchingCubes* mc = new MarchingCubes(20, 20, 20, 2, 2, 2, bigData, 0.6f);
     mc->LoadTexture("./rock.ppm");
 	SceneNode* mcNode = new SceneNode(mc);
 
