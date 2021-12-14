@@ -1,21 +1,39 @@
 *TODO*: Please edit the following information in your final project
 
-## Edit this line: Put your link to your youtube video here (see deliverables).
+https://www.youtube.com/watch?v=fWhEbZEGT7k&ab_channel=RyanGehrlein
 
 ## Edit this line: Put a few screenshots of your project here (see deliverables).
-
+(1)["./media/Screenshot_1.png"]
+(2)["./media/Screenshot_2.png"]
+(3)["./media/Screenshot_3.png"]
 
 * Name and partners name(At most teams of 2 folks total)
-  * Team member 1: *edit this*
-  * Team member 2: *edit this*
-* How many hours did it take you to complete this final project? 
-* Did you collaborate or share ideas with any other students/TAs/Professors?
+  * Team member 1: Ryan Gehrlein
+* How many hours did it take you to complete this final project? 40
+* Did you collaborate or share ideas with any other students/TAs/Professors? No
 * Did you use any external resources? 
   * Note it is fair to utilize some tutorials--cite them here. You **must** add your own personal touch however!
-  * *edit this*
-  * *edit this*
-  * *edit this*
+  * https://cmu-graphics.github.io/Scotty3D/meshedit/halfedge - half edge data structure for finding adjacent elements in a mesh (didn't end up using this though, but was good to learn about mesh generation)
+  * https://gamedev.stackexchange.com/questions/97707/marching-cubes-vertex-normals - calculatig normals for marching cubes
+  * https://www.youtube.com/watch?v=M3iI2l0ltbE - marching cubes high level explanation
+  * Starter code from various labs in this class
+  * Anything else is cited in the code where it is used (as comments)
   * (Optional) What was the most interesting part of the Final Assignment? How could the instructor improve the final project?
+
+** HOW TO USE **
+
+* Should compile with simple python build.py
+* Arrow keys + RSHIFT and RCTRL to move the 8-sided shape and dig through the cube
+* Hold W for wireframe view
+* Press R to reset the cube
+* Click and drag to rotate the cube
+* Hold X for another interesting way to carve the cube :)
+
+** NOTES **
+
+* In my video my cube's resolution is 25x25x25. This is pushing my laptop to its limits; for this submission I put it slightly down to 20x20x20 so that I don't burn anyone's computer.
+* Requires an environment with pthread support (because that's all that would work on my environment!)
+* Works when built with O3 level optimizations.
 
 ### Rubric
 
