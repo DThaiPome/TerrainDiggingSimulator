@@ -1,6 +1,6 @@
 ## HOW TO USE
 
-* Should compile with simple python build.py
+* Should compile with simple "python build.py" command (g++ required)
 * Arrow keys + RSHIFT and RCTRL to move the 8-sided shape and dig through the cube
 * Hold W for wireframe view
 * Press R to reset the cube
