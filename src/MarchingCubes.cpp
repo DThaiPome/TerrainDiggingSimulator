@@ -4,6 +4,8 @@
 #include <glm/glm.hpp>
 #include <glm/gtx/rotate_vector.hpp>
 
+// MARCHING CUBES ALGORITHM!
+
 // TRIANGULATION TABLE (Taken from here https://github.com/SebLague/Marching-Cubes/blob/master/Assets/Scripts/Compute/Includes/MarchTables.compute)
 static int triangulation[256][16] = {
     {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1 },
@@ -265,18 +267,22 @@ static int triangulation[256][16] = {
     };
 // *******************
 
+// Should this value be considered "good" and be included in the mesh?
 inline unsigned int above_surface(float val, float surfaceLevel) {
     return val >= surfaceLevel ? 1 : 0;
 }
 
+// Calculates the index of a 1-dimensional array being used to represent a 3-dimensional array, where the "segs" (segments) represents its dimensions.
 inline unsigned int get_3d_index(unsigned int x, unsigned int y, unsigned int z, unsigned int xSegs, unsigned int ySegs, unsigned int zSegs) {
     return (z * (xSegs * ySegs)) + (y * xSegs) + x;
 }
 
+// Index into a 3-dimensional array, where the "segs" (segments) represents its dimensions.
 inline float index_into_3d_array(float* array, unsigned int x, unsigned int y, unsigned int z, unsigned int xSegs, unsigned int ySegs, unsigned int zSegs) {
     return array[get_3d_index(x, y, z, xSegs, ySegs, zSegs)];
 }
 
+// Take in 8 points and calculate its respective index in the triangulation table
 unsigned int triangulation_index(unsigned int* points) {
     unsigned int index = 0;
     for(int i = 0; i < 8; i++) {
@@ -287,6 +293,8 @@ unsigned int triangulation_index(unsigned int* points) {
     return index;
 }
 
+// This takes in a triangulation table, and returns a list of pairs of indices. Each index represents a vertex in an 8-point cube, and each pair
+// that is included in the list represents an edge of that cube on which lies a vertex of the pre-calculated mesh.
 std::vector<std::pair<unsigned int, unsigned int>> index_triangulation_table(unsigned int index) {
     std::vector<unsigned int> edgeIndices;
     std::vector<std::pair<unsigned int, unsigned int>> result;
@@ -313,10 +321,13 @@ std::vector<std::pair<unsigned int, unsigned int>> index_triangulation_table(uns
     return result;
 }
 
+// Linear interpolation
 inline float flerp(float a, float b, float t) {
     return a + (t * (b - a));
 }
 
+// Take in a pair of vertices that represent an edge on an 8 point cube, as well as the values at each point, and determine the exact position of the vertex
+// between them in local space.
 MarchingCubes::Vector3 MarchingCubes::point_pair_to_position(std::pair<MarchingCubes::IVector3, MarchingCubes::IVector3> positionPair, Vector3 origin, float valueA, float valueB, float surfaceLevel, float xUnit, float yUnit, float zUnit) {
     IVector3 indexA = positionPair.first;
     IVector3 indexB = positionPair.second;
@@ -342,6 +353,7 @@ MarchingCubes::Vector3 MarchingCubes::point_pair_to_position(std::pair<MarchingC
     return result;
 }
 
+// Vector cross product
 inline MarchingCubes::Vector3 MarchingCubes::cross_product(MarchingCubes::Vector3 vA, MarchingCubes::Vector3 vB) {
     return {
         (vA.y * vB.z) - (vA.z * vB.y),
@@ -350,6 +362,7 @@ inline MarchingCubes::Vector3 MarchingCubes::cross_product(MarchingCubes::Vector
     };
 }
 
+// Vector subtraction
 inline MarchingCubes::Vector3 MarchingCubes::get_vector(MarchingCubes::Vector3 vA, MarchingCubes::Vector3 vB) {
     return {
         vB.x - vA.x,
@@ -358,16 +371,20 @@ inline MarchingCubes::Vector3 MarchingCubes::get_vector(MarchingCubes::Vector3 v
     };
 }
 
+// Dot product
 inline float MarchingCubes::dot(MarchingCubes::Vector3 vA, MarchingCubes::Vector3 vB) {
     return (vA.x * vB.x) + (vA.y * vB.y) + (vA.z * vB.z);
 }
 
+// Calculate the normal of a triangle
 MarchingCubes::Vector3 MarchingCubes::triangle_normal(MarchingCubes::Vector3* positions) {
     Vector3 vA = get_vector(positions[0], positions[1]);
     Vector3 vB = get_vector(positions[0], positions[2]);
     return cross_product(vA, vB);
 }
 
+// Note to self: invest more time into typedefs, this signature is kinda gross
+// This basically takes in the triangulation and some other information about the points being processed, turns them into vertex information, and records it for later
 void MarchingCubes::fill_triangulations(const std::vector<std::pair<MarchingCubes::IVector3, MarchingCubes::IVector3>> & triangulation, std::map<std::pair<MarchingCubes::IVector3, MarchingCubes::IVector3>, MarchingCubes::Vertex> & vertexMap, std::vector<unsigned int> & indices, float* data, float surfaceLevel, float xSegs, float ySegs, float zSegs, float xUnit, float yUnit, float zUnit, unsigned int & globalIndex) {
     Vector3 origin = {
         (-(xSegs - 1) * xUnit) / 2,
@@ -411,6 +428,7 @@ void MarchingCubes::fill_triangulations(const std::vector<std::pair<MarchingCube
     }
 }
 
+// Starts the process of processing a mini cube. This function is passed to each thread as a job.
 void MarchingCubes::cube_thread(unsigned int x, unsigned int y, unsigned int z, unsigned int xSegs, unsigned int ySegs, unsigned int zSegs, float xUnit, float yUnit, float zUnit, float* data, float surfaceLevel, std::map<std::pair<MarchingCubes::IVector3, MarchingCubes::IVector3>, MarchingCubes::Vertex> & vertexMap, std::vector<unsigned int> & indices, unsigned int & globalIndex) {
     IVector3 pointIndices[8] = {
         { x, y, z },
@@ -441,6 +459,7 @@ void MarchingCubes::cube_thread(unsigned int x, unsigned int y, unsigned int z, 
     fill_triangulations(triangulationCoords, vertexMap, indices, data, surfaceLevel, xSegs, ySegs, zSegs, xUnit, yUnit, zUnit, globalIndex);
 }
 
+// Divide the region into mini-cubes, and distribute jobs to process each mini-cube across all threads.
 MarchingCubes::MeshData MarchingCubes::march_cubes(unsigned int xSegs, unsigned int ySegs, unsigned int zSegs, float xUnit, float yUnit, float zUnit, float* data, float surfaceLevel) {
     std::map<std::pair<IVector3, IVector3>, Vertex> vertexMap;
     std::vector<unsigned int> indices;
@@ -497,6 +516,7 @@ MarchingCubes::MeshData MarchingCubes::march_cubes(unsigned int xSegs, unsigned 
     return { vertices, indices };
 }
 
+// Get the mesh information, and translate that information into OpenGL buffers
 void MarchingCubes::Init(float xDim, float yDim, float zDim, float surfaceLevel) {
     m_geometry = Geometry();
     m_vertexBufferLayout = VertexBufferLayout();
@@ -589,6 +609,7 @@ void MarchingCubes::Init(float xDim, float yDim, float zDim, float surfaceLevel)
                                             m_geometry.GetIndicesDataPtr());
 }
 
+// A constructor
 MarchingCubes::MarchingCubes(unsigned int xSegs, unsigned int ySegs, unsigned int zSegs, float xDim, float yDim, float zDim, float* data, float surfaceLevel) : Object() {
     #ifdef USE_THREADS
     pthread_mutex_init(&m_dataLock, NULL);
@@ -610,6 +631,7 @@ MarchingCubes::~MarchingCubes() {
 
 }
 
+// Takes in another scalar field and subtracts it from this one (used to dig "tunnels" in the giant cube)
 float* MarchingCubes::Subtract(float* subtractData) {
     for(size_t z = 0; z < m_zSegs; z++) {
         for(size_t y = 0; y < m_ySegs; y++) {
@@ -626,6 +648,7 @@ float* MarchingCubes::Subtract(float* subtractData) {
 }
 
 // This was going to have some random noise in it but I decided against it
+// Carve out a giant sphere in the cube
 float* MarchingCubes::SphereExplosionData(float radius, float noise, float originX, float originY, float originZ) {
     float* data = new float[m_xSegs * m_ySegs * m_zSegs];
     for(size_t z = 0; z < m_zSegs; z++) {
@@ -646,6 +669,7 @@ float* MarchingCubes::SphereExplosionData(float radius, float noise, float origi
     return data;
 }
 
+// Change the data stored in the scalar field
 void MarchingCubes::SetData(float* data) {
     for(size_t i = 0; i < m_xSegs * m_ySegs * m_zSegs; i++) {
         m_data[i] = data[i];
